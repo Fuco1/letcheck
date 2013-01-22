@@ -80,7 +80,7 @@
           (save-restriction
             (widen)
             (narrow-to-region (point) (progn (forward-sexp) (point)))
-            (beginning-of-buffer)
+            (goto-char 0)
             (while (forward-symbol 1)
               ;; we don't want to highlight the first definition
               (when (and (save-excursion
@@ -93,6 +93,7 @@
                   (overlay-put ov 'face font-lock-warning-face))
                 ))))))))
 
+;;;###autoload
 (define-minor-mode letcheck-mode
   "Toggle checking of let assignments.  If point is inside a let
   form, the variables in this let block are checked and if you
