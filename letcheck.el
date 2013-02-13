@@ -95,11 +95,13 @@
 
 ;;;###autoload
 (define-minor-mode letcheck-mode
-  "Toggle checking of let assignments.  If point is inside a let
-  form, the variables in this let block are checked and if you
-  reference a previously defined variable in this let binding, it
-  is highlight with warning face, because you can't reference it.
-  You then need to change the let into let*."
+  "Toggle checking of let assignments.
+If point is inside a let form, the variables in this let block
+are checked and if previously defined variable in this let
+binding is referenced, it is highlighted with warning face.  This
+is because it is not possible to reference local variables in let
+form in Emacs LISP.  This will guide the user to spot this kind
+of error and advice her to change the let into let*."
   :init-value nil
   (if letcheck-mode
       (unless letcheck-idle-timer
