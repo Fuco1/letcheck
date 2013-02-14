@@ -47,51 +47,98 @@
 (defvar letcheck-idle-timer nil
   "Timer used to run the letcheck function.")
 
+(defun letcheck-get-let-form ()
+  "Return the let form the point is currently inside of."
+  (let ((ok t) s sexp)
+    (while (and ok (setq s (syntax-ppss)))
+      (if (= 0 (car s))
+          (setq ok nil)
+        (goto-char (cadr s))
+        (setq sexp (sexp-at-point))
+        (when (eq (car sexp) 'let)
+          (setq ok nil))))
+    (if (eq (car sexp) 'let) `(,@sexp) nil)))
+
+(defun letcheck-extract-variables (varlist)
+  "Extract the variable names from VARLIST.
+VARLIST is a list of the same format `let' accept as first
+argument."
+  (let (vars)
+    (while varlist
+      (let ((current (car varlist)))
+        (pop varlist)
+        (if (listp current)
+            (push (car current) vars)
+          (push current vars))))
+    (nreverse vars)))
+
+(defun letcheck-check-variable-form (var banned-symbols)
+  "Check form of variable VAR for erroneous references.
+The list BANNED-SYMBOLS contains the list of symbols that are
+invalid references."
+  (cond
+   ((listp var)
+    (cons t (mapcar
+             (lambda (x) (letcheck-check-variable-form x banned-symbols))
+             (cdr var))))
+   ((symbolp var)
+    (not (memq var banned-symbols)))
+   (t t)))
+
+(defun letcheck--next-sexp ()
+  "Move to the front of the next expression."
+  (ignore-errors
+    (forward-sexp 2)
+    (backward-sexp)))
+
+(defun letcheck-traverse-var-body (var parse)
+  "Traverse the VAR body using navigation functions and mark
+corresponding symbols if they have nil in the PARSE structure."
+  (cond
+   ((listp var)
+    (down-list)
+    (let ((p parse))
+      (dolist (x var)
+        (letcheck-traverse-var-body x (car p))
+        (setq p (cdr p))))
+    (up-list)
+    (ignore-errors (forward-sexp) (backward-sexp)))
+   ((symbolp var)
+    (if (not parse)
+        (let ((ov (make-overlay
+                   (save-excursion (forward-sexp) (backward-sexp) (point))
+                   (progn (forward-sexp) (point)))))
+          (push ov letcheck-overlays-list)
+          (overlay-put ov 'face font-lock-warning-face)
+          (ignore-errors (forward-sexp) (backward-sexp)))
+      (letcheck--next-sexp)))
+   (t (letcheck--next-sexp))))
+
 (defun letcheck-function ()
   "Test if point is inside let form."
   ;; remove any overlay that has letcheck property
   (dolist (ov letcheck-overlays-list) (delete-overlay ov))
   (setq letcheck-overlays-list nil)
   (save-excursion
-    (let (s sexp (ok t))
-      ;; first, get to the let form
-      (while (and ok (setq s (syntax-ppss)))
-        (if (= 0 (car s))
-            (setq ok nil)
-          (goto-char (cadr s))
-          (setq sexp (sexp-at-point))
-          (when (and sexp
-                     (eq (car sexp) 'let))
-            (setq ok nil))))
-      (when (eq (car sexp) 'let)
-        (let ((varlist (cadr sexp))
-              (variables nil))
-          ;; get all the variables this let defines
-          (while varlist
-            (if (listp (car varlist))
-                (setq variables (cons (caar varlist) variables))
-              (setq variables (cons (car varlist) variables)))
-            (setq varlist (cdr varlist)))
-          (setq variables (mapcar #'symbol-name variables))
-          ;; now check all the forms inside the let to see if they use
-          ;; any of the variables.  If so, we should signal an error
-          (down-list 2)
-          (backward-up-list)
-          (save-restriction
-            (widen)
-            (narrow-to-region (point) (progn (forward-sexp) (point)))
-            (goto-char 0)
-            (while (forward-symbol 1)
-              ;; we don't want to highlight the first definition
-              (when (and (save-excursion
-                           (goto-char (match-beginning 0))
-                           (save-match-data
-                             (not (looking-back "("))))
-                         (member (match-string 0) variables))
-                (let ((ov (make-overlay (match-beginning 0) (match-end 0))))
-                  (push ov letcheck-overlays-list)
-                  (overlay-put ov 'face font-lock-warning-face))
-                ))))))))
+    (let* ((let-form (letcheck-get-let-form))
+           (varlist (and let-form (cadr let-form)))
+           (variables (and let-form (letcheck-extract-variables varlist)))
+           cvars)
+      (when variables
+        (down-list 2)
+        (letcheck--next-sexp)
+        (pop varlist) ;; the first variable is always correct!
+        (push (pop variables) cvars)
+        (while varlist
+          (push (pop variables) cvars)
+          (let ((thing (sexp-at-point)))
+            (cond
+             ((listp thing)
+              (letcheck-traverse-var-body
+               thing
+               (letcheck-check-variable-form (car varlist) cvars)))
+             (t (letcheck--next-sexp))))
+          (pop varlist))))))
 
 ;;;###autoload
 (define-minor-mode letcheck-mode
