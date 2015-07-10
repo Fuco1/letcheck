@@ -55,9 +55,12 @@
           (setq ok nil)
         (goto-char (cadr s))
         (setq sexp (sexp-at-point))
-        (when (eq (car sexp) 'let)
+        (when (and (listp sexp)
+                   (eq (car sexp) 'let))
           (setq ok nil))))
-    (if (eq (car sexp) 'let) `(,@sexp) nil)))
+    (when (and (listp sexp)
+               (eq (car sexp) 'let))
+      `(,@sexp))))
 
 (defun letcheck-extract-variables (varlist)
   "Extract the variable names from VARLIST.
