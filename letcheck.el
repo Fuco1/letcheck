@@ -5,7 +5,7 @@
 ;; Author: Matus Goljer <matus.goljer@gmail.com>
 ;; Maintainer: Matus Goljer <matus.goljer@gmail.com>
 ;; Created: 22 Jan 2013
-;; Version: 0.1
+;; Version: 0.2
 ;; Keywords: convenience
 ;; URL: https://github.com/Fuco1/letcheck
 
@@ -117,28 +117,29 @@ corresponding symbols if they have nil in the PARSE structure."
 (defun letcheck-function ()
   "Test if point is inside let form."
   ;; remove any overlay that has letcheck property
-  (dolist (ov letcheck-overlays-list) (delete-overlay ov))
-  (setq letcheck-overlays-list nil)
-  (save-excursion
-    (let* ((let-form (letcheck-get-let-form))
-           (varlist (and let-form (cadr let-form)))
-           (variables (and let-form (letcheck-extract-variables varlist)))
-           cvars)
-      (when variables
-        (down-list 2)
-        (letcheck--next-sexp)
-        (pop varlist) ;; the first variable is always correct!
-        (push (pop variables) cvars)
-        (while varlist
+  (when letcheck-mode
+    (dolist (ov letcheck-overlays-list) (delete-overlay ov))
+    (setq letcheck-overlays-list nil)
+    (save-excursion
+      (let* ((let-form (letcheck-get-let-form))
+             (varlist (and let-form (cadr let-form)))
+             (variables (and let-form (letcheck-extract-variables varlist)))
+             cvars)
+        (when variables
+          (down-list 2)
+          (letcheck--next-sexp)
+          (pop varlist) ;; the first variable is always correct!
           (push (pop variables) cvars)
-          (let ((thing (sexp-at-point)))
-            (cond
-             ((listp thing)
-              (letcheck-traverse-var-body
-               thing
-               (letcheck-check-variable-form (car varlist) cvars)))
-             (t (letcheck--next-sexp))))
-          (pop varlist))))))
+          (while varlist
+            (push (pop variables) cvars)
+            (let ((thing (sexp-at-point)))
+              (cond
+               ((listp thing)
+                (letcheck-traverse-var-body
+                 thing
+                 (letcheck-check-variable-form (car varlist) cvars)))
+               (t (letcheck--next-sexp))))
+            (pop varlist)))))))
 
 ;;;###autoload
 (define-minor-mode letcheck-mode
