@@ -66,14 +66,15 @@
   "Extract the variable names from VARLIST.
 VARLIST is a list of the same format `let' accept as first
 argument."
-  (let (vars)
-    (while varlist
-      (let ((current (car varlist)))
-        (pop varlist)
-        (if (listp current)
-            (push (car current) vars)
-          (push current vars))))
-    (nreverse vars)))
+  (when (listp varlist)
+    (let (vars)
+      (while varlist
+        (let ((current (car varlist)))
+          (pop varlist)
+          (if (listp current)
+              (push (car current) vars)
+            (push current vars))))
+      (nreverse vars))))
 
 (defun letcheck-check-variable-form (var banned-symbols)
   "Check form of variable VAR for erroneous references.
