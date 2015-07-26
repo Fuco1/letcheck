@@ -100,6 +100,9 @@ invalid references."
 corresponding symbols if they have nil in the PARSE structure."
   (cond
    ((and (listp var)
+         (eq var nil))
+    (letcheck--next-sexp))
+   ((and (listp var)
          (eq (car var) 'quote))
     (letcheck--next-sexp))
    ((listp var)
