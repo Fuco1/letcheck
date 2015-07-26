@@ -99,6 +99,9 @@ invalid references."
   "Traverse the VAR body using navigation functions and mark
 corresponding symbols if they have nil in the PARSE structure."
   (cond
+   ((and (listp var)
+         (eq (car var) 'quote))
+    (letcheck--next-sexp))
    ((listp var)
     (down-list)
     (let ((p parse))
