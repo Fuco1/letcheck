@@ -41,8 +41,7 @@
 (require 'thingatpt)
 
 (defvar letcheck-overlays-list nil
-  "List of overlays used to highlight erroneous assignments
-  inside let.")
+  "List of overlays used to highlight erroneous assignments inside let.")
 
 (defvar letcheck-idle-timer nil
   "Timer used to run the letcheck function.")
@@ -96,7 +95,9 @@ invalid references."
     (backward-sexp)))
 
 (defun letcheck-traverse-var-body (var parse)
-  "Traverse the VAR body using navigation functions and mark
+  "Put overlays on invalid references in this let form.
+
+Traverse the VAR body using navigation functions and mark
 corresponding symbols if they have nil in the PARSE structure."
   (cond
    ((and (listp var)
